@@ -1,0 +1,22 @@
+import requests
+from pathlib import Path
+
+
+NEW_DIRECTORY = './books'
+URL = 'http://tululu.org/txt.php?id=32168'
+
+def main():
+    Path(NEW_DIRECTORY).mkdir(parents=True, exist_ok=True)
+
+    for id in range(1, 11):
+        payload = {'id': id}
+        url = 'http://tululu.org/txt.php?'
+        response = requests.get(url, params=payload)
+        response.raise_for_status()
+
+        filename = NEW_DIRECTORY + '/' + 'id{id}.txt'.format(id=id)
+        with open(filename, 'wb') as file:
+            file.write(response.content)
+
+if __name__ in '__main__':
+    main()
