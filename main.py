@@ -61,6 +61,11 @@ def main():
             soup = BeautifulSoup(response_for_title.text, 'lxml')
             text_header = soup.find('h1').text
             title_and_author = [el.strip() for el in text_header.split('::')]
+            comments = soup.find_all('div', class_='texts')
+            print(title_and_author[0], '\n')
+            if comments:
+                for comment in comments:
+                    print(comment.find('span', class_='black').text)
             image = soup.find('div', class_='bookimage').find('img')['src']
             download_txt(url_for_download,
                          title_and_author[0],
