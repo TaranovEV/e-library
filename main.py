@@ -3,7 +3,8 @@ import os
 from bs4 import BeautifulSoup
 from pathlib import Path
 from pathvalidate import sanitize_filepath, sanitize_filename
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
+import argparse
 
 
 def parse_book_page(content):
@@ -100,7 +101,17 @@ def download_txt(url, filename, folder='books/'):
 
 
 def main():
-    for id in range(1, 11):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('start_id',
+                        help='id стартовой страницы парсера',
+                        type=int,
+                        default=1)
+    parser.add_argument('end_id',
+                        help='id "конечной" страницы парсера',
+                        type=int,
+                        default=11)
+    args = parser.parse_args()
+    for id in range(args.start_id, args.end_id):
         url_for_download = 'http://tululu.org/txt.php?id={id}'.format(id=id)
         url_for_title = 'http://tululu.org/b{id}/'.format(id=id)
         try:
