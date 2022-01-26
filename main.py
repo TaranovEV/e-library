@@ -62,10 +62,13 @@ def main():
             text_header = soup.find('h1').text
             title_and_author = [el.strip() for el in text_header.split('::')]
             comments = soup.find_all('div', class_='texts')
-            print(title_and_author[0], '\n')
+            print(title_and_author[0])
+            genres = soup.find('span', class_='d_book').find_all('a')
+            print([genre.text for genre in genres], '\n')
             if comments:
                 for comment in comments:
                     print(comment.find('span', class_='black').text)
+            print()
             image = soup.find('div', class_='bookimage').find('img')['src']
             download_txt(url_for_download,
                          title_and_author[0],
