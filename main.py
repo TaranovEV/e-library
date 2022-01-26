@@ -3,7 +3,7 @@ import os
 from bs4 import BeautifulSoup
 from pathlib import Path
 from pathvalidate import sanitize_filepath, sanitize_filename
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin
 import argparse
 
 
