@@ -3,11 +3,32 @@ import os
 from bs4 import BeautifulSoup
 from pathlib import Path
 from pathvalidate import sanitize_filepath, sanitize_filename
+from urllib.parse import urljoin
+
+
+def download_image(url, image, folder='images/'):
+    """Функция для скачивания изображений.
+    Args:
+        url (str): Cсылка на страницу, содержащую изображение.
+        image (str): Ссылка на изображение.
+        folder (str): Папка, куда сохранять.
+    Returns:
+
+    """
+    image_name = os.path.basename(image)
+    response = requests.get(urljoin(url, image))
+    filename = sanitize_filename(image_name)
+    fpath = os.path.join(folder, filename)
+    fpath = sanitize_filepath(fpath)
+    Path(folder).mkdir(parents=True, exist_ok=True)
+    with open(fpath, 'wb') as file:
+        file.write(response.content)
 
 
 def check_for_redirect(response):
     if response.history:
         raise requests.HTTPError
+
 
 def download_txt(url, filename, folder='books/'):
     """Функция для скачивания текстовых файлов.
@@ -16,9 +37,8 @@ def download_txt(url, filename, folder='books/'):
         filename (str): Имя файла, с которым сохранять.
         folder (str): Папка, куда сохранять.
     Returns:
-        str: Путь до файла, куда сохранён текст.
+
     """
-    
     response = requests.get(url)
     response.raise_for_status()
     check_for_redirect(response)
@@ -28,6 +48,7 @@ def download_txt(url, filename, folder='books/'):
     Path(folder).mkdir(parents=True, exist_ok=True)
     with open(fpath, 'wb') as file:
         file.write(response.content)
+
 
 def main():
     for id in range(1, 11):
@@ -39,10 +60,17 @@ def main():
             check_for_redirect(response_for_title)
             soup = BeautifulSoup(response_for_title.text, 'lxml')
             text_header = soup.find('h1').text
-            title_and_author =  [el.strip() for el in text_header.split('::')]   
-            download_txt(url_for_download, title_and_author[0], folder='books/')
+            title_and_author = [el.strip() for el in text_header.split('::')]
+            image = soup.find('div', class_='bookimage').find('img')['src']
+            download_txt(url_for_download,
+                         title_and_author[0],
+                         folder='books/')
+            download_image(url_for_title,
+                           image,
+                           folder='images/')
         except requests.HTTPError:
-           pass
+            pass
+
 
 if __name__ in '__main__':
     main()
