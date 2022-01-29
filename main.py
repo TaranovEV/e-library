@@ -21,11 +21,12 @@ def parse_book_page(content):
     """
     text_header = content.find('h1').text
     title_and_author = [el.strip() for el in text_header.split('::')]
+    title, author = title_and_author
     comments_in_page = content.find_all('div', class_='texts')
     genres = content.find('span', class_='d_book').find_all('a')
     books_info = {
-        'author': title_and_author[1],
-        'title': title_and_author[0],
+        'author': author,
+        'title': title,
         'genres': [genre.text for genre in genres],
         'comments': []
     }
@@ -39,7 +40,7 @@ def parse_book_page(content):
     return books_info
 
 
-def download_image(url, image, folder='images/'):
+def download_image(url, folder='images/'):
     """Функция для скачивания изображений.
     Args:
         url (str): Cсылка на страницу, содержащую изображение.
@@ -48,9 +49,15 @@ def download_image(url, image, folder='images/'):
     Returns:
 
     """
+    response = requests.get(url)
+    response.raise_for_status()
+    check_for_redirect(response)
+    soup = BeautifulSoup(response.text, 'lxml')
+    image = soup.find('div', class_='bookimage').find('img')['src']
     image_name = os.path.basename(image)
     response = requests.get(urljoin(url, image))
-    fpath = collect_path(folder, image_name, txt=False)
+    filename = sanitize_filename(image_name)
+    fpath = sanitize_filepath(os.path.join(folder, filename))
     Path(folder).mkdir(parents=True, exist_ok=True)
 
     with open(fpath, 'wb') as file:
@@ -60,25 +67,6 @@ def download_image(url, image, folder='images/'):
 def check_for_redirect(response):
     if response.history:
         raise requests.HTTPError
-
-
-def collect_path(folder, filename_in_page, txt=True):
-    """
-    Функция собирает путь к сохраняемому файлу
-    Args:
-        folder (str): Название создаваемой папки
-        filename_in_page (str): Название файла на странице
-
-    Returns (str):
-        Путь к сохраняемому файлу
-    """
-    if txt:
-        filename = sanitize_filename(''.join([filename_in_page, '.txt']))
-    else:
-        filename = sanitize_filename(filename_in_page)
-    fpath = os.path.join(folder, filename)
-
-    return sanitize_filepath(fpath)
 
 
 def download_txt(url, filename, folder='books/'):
@@ -92,12 +80,11 @@ def download_txt(url, filename, folder='books/'):
     """
     response = requests.get(url)
     response.raise_for_status()
-    check_for_redirect(response)
-    fpath = collect_path(folder, filename, txt=True)
+    filename = sanitize_filename(''.join([filename, '.txt']))
+    fpath = sanitize_filepath(os.path.join(folder, filename))
     Path(folder).mkdir(parents=True, exist_ok=True)
-
-    with open(fpath, 'wb') as file:
-        file.write(response.content)
+    with open(fpath, 'w') as file:
+        file.write(response.text)
 
 
 def main():
@@ -124,12 +111,10 @@ def main():
             check_for_redirect(title_response)
             soup = BeautifulSoup(title_response.text, 'lxml')
             books_info = parse_book_page(soup)
-            image = soup.find('div', class_='bookimage').find('img')['src']
             download_txt(download_url,
                          books_info['title'],
                          folder='books/')
             download_image(title_url,
-                           image,
                            folder='images/')
         except requests.HTTPError:
             pass
