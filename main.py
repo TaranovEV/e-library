@@ -3,7 +3,7 @@ import os
 from bs4 import BeautifulSoup
 from pathlib import Path
 from pathvalidate import sanitize_filepath, sanitize_filename
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlencode
 import argparse
 
 
@@ -30,12 +30,12 @@ def parse_book_page(content):
         'comments': []
     }
     if comments_in_page:
-        comments = []
-        for comment in comments_in_page:
-            comments.append(comment.find('span', class_='black').text)
+        comments = [
+            comment.find('span', class_='black').text
+            for comment in comments_in_page
+            ]
         books_info['comments'] = comments
 
-    print(books_info)
     return books_info
 
 
@@ -114,10 +114,10 @@ def main():
                         default=11)
     args = parser.parse_args()
     for id_page in range(args.start_id, args.end_id):
-        download_url = (
-            'http://tululu.org/txt.php?id={id}'.format(id=id_page)
-        )
-        title_url = 'http://tululu.org/b{id}/'.format(id=id_page)
+        query = {'id': id_page}
+        params = urlencode(query)
+        download_url = f'http://tululu.org/txt.php?{params}'
+        title_url = f'http://tululu.org/b{id_page}/'
         try:
             title_response = requests.get(title_url)
             title_response.raise_for_status()
