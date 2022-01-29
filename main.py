@@ -105,15 +105,17 @@ def main():
     parser.add_argument('start_id',
                         help='id стартовой страницы парсера',
                         type=int,
+                        nargs='?',
                         default=1)
     parser.add_argument('end_id',
                         help='id "конечной" страницы парсера',
                         type=int,
+                        nargs='?',
                         default=11)
     args = parser.parse_args()
-    for id in range(args.start_id, args.end_id):
-        url_for_download = 'http://tululu.org/txt.php?id={id}'.format(id=id)
-        url_for_title = 'http://tululu.org/b{id}/'.format(id=id)
+    for id_page in range(args.start_id, args.end_id):
+        url_for_download = 'http://tululu.org/txt.php?id={id}'.format(id=id_page)
+        url_for_title = 'http://tululu.org/b{id}/'.format(id=id_page)
         try:
             response_for_title = requests.get(url_for_title)
             response_for_title.raise_for_status()
