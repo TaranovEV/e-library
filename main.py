@@ -114,19 +114,21 @@ def main():
                         default=11)
     args = parser.parse_args()
     for id_page in range(args.start_id, args.end_id):
-        url_for_download = 'http://tululu.org/txt.php?id={id}'.format(id=id_page)
-        url_for_title = 'http://tululu.org/b{id}/'.format(id=id_page)
+        download_url = (
+            'http://tululu.org/txt.php?id={id}'.format(id=id_page)
+        )
+        title_url = 'http://tululu.org/b{id}/'.format(id=id_page)
         try:
-            response_for_title = requests.get(url_for_title)
-            response_for_title.raise_for_status()
-            check_for_redirect(response_for_title)
-            soup = BeautifulSoup(response_for_title.text, 'lxml')
+            title_response = requests.get(title_url)
+            title_response.raise_for_status()
+            check_for_redirect(title_response)
+            soup = BeautifulSoup(title_response.text, 'lxml')
             books_info = parse_book_page(soup)
             image = soup.find('div', class_='bookimage').find('img')['src']
-            download_txt(url_for_download,
+            download_txt(download_url,
                          books_info['title'],
                          folder='books/')
-            download_image(url_for_title,
+            download_image(title_url,
                            image,
                            folder='images/')
         except requests.HTTPError:
