@@ -1,5 +1,4 @@
 import argparse
-from email import message
 import json
 import os
 import requests
@@ -64,7 +63,9 @@ def download_image(title_url, image_url, folder='images/'):
     check_for_redirect(response)
     filename = os.path.basename(image_url)
     filename = sanitize_filename(filename)
-    fpath = sanitize_filepath(os.path.join(folder, filename))
+    fpath = sanitize_filepath(
+        os.path.join(folder, filename), platform='auto'
+    )
     Path(folder).mkdir(parents=True, exist_ok=True)
 
     with open(fpath, 'wb') as file:
@@ -90,7 +91,9 @@ def download_txt(url, filename, folder='books/'):
         response.raise_for_status()
         check_for_redirect(response)
         filename = sanitize_filename(''.join([filename, '.txt']))
-        fpath = sanitize_filepath(os.path.join(folder, filename))
+        fpath = sanitize_filepath(
+            os.path.join(folder, filename), platform='auto'
+        )
         Path(folder).mkdir(parents=True, exist_ok=True)
         with open(fpath, 'w') as file:
             file.write(response.text)
@@ -108,6 +111,23 @@ def main():
                         help='номер "конечной" страницы парсера',
                         type=int,
                         default=702)
+    parser.add_argument('--dest_folder',
+                        help='''путь к каталогу с результатами парсинга:
+                        картинкам, книгам, JSON''',
+                        type=Path,
+                        default=os.getcwd())
+    parser.add_argument('--skip_imgs',
+                        help='не скачивать картинки',
+                        type=bool,
+                        default=False)
+    parser.add_argument('--skip_txt',
+                        help='не скачивать книги',
+                        type=bool,
+                        default=False)
+    parser.add_argument('--json_path',
+                        help='указать свой путь к *.json файлу с результатами',
+                        type=Path,
+                        default=os.getcwd())
     args = parser.parse_args()
     assert_message = 'Аргумент end_page должен быть больше чем start_page'
     assert args.end_page >= args.start_page, assert_message
@@ -137,16 +157,22 @@ def main():
                 book_page_response.raise_for_status()
                 check_for_redirect(book_page_response)
                 books_info = parse_book_page(book_page_response.text)
-                download_txt(download_url,
-                             books_info['title'],
-                             folder='books/')
-                download_image(title_url,
-                               books_info['image_url'],
-                               folder='images/')
+                if not args.skip_txt:
+                    download_txt(download_url,
+                                 books_info['title'],
+                                 folder=os.path.join(args.dest_folder,
+                                                     'books/'))
+                if not args.skip_imgs:
+                    download_image(title_url,
+                                   books_info['image_url'],
+                                   folder=os.path.join(args.dest_folder,
+                                                       'images/'))
                 books_description.append(books_info)
         except requests.HTTPError:
             pass
-    with open('books_description.json', 'w') as file:
+    json_path = os.path.join(args.json_path, 'books_description.json')
+    json_path = sanitize_filepath(json_path, platform='auto')
+    with open(json_path, 'w') as file:
         json.dump(books_description, file, ensure_ascii=False)
 
 
