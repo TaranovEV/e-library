@@ -1,10 +1,12 @@
-import requests
+import argparse
+from email import message
+import json
 import os
+import requests
 from bs4 import BeautifulSoup
 from pathlib import Path
 from pathvalidate import sanitize_filepath, sanitize_filename
 from urllib.parse import urljoin, urlencode
-import json
 
 
 def parse_book_page(responce):
@@ -97,12 +99,27 @@ def download_txt(url, filename, folder='books/'):
 
 
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--start_page',
+                        help='номер стартовой страницы парсера',
+                        type=int,
+                        default=700)
+    parser.add_argument('--end_page',
+                        help='номер "конечной" страницы парсера',
+                        type=int,
+                        default=702)
+    args = parser.parse_args()
+    assert_message = 'Аргумент end_page должен быть больше чем start_page'
+    assert args.end_page >= args.start_page, assert_message
     books_description = []
-    for page_id in range(1, 11):
-        query = {'id': page_id}
+    for page_number in range(args.start_page, args.end_page):
+        query = {'id': page_number}
         params = urlencode(query)
         download_url = f'http://tululu.org/txt.php?{params}'
-        title_url = 'http://tululu.org/l55/{page_id}'.format(page_id=page_id)
+        title_url = (
+            'http://tululu.org/l55/{page_number}'
+            .format(page_number=page_number)
+        )
         try:
             response = requests.get(title_url)
             response.raise_for_status()
