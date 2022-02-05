@@ -21,12 +21,16 @@ def parse_book_page(responce):
 
     """
     soup = BeautifulSoup(responce, 'lxml')
-    text_header = soup.find('h1').text
+    header_selector = 'h1'
+    text_header = soup.select_one(header_selector).text
     title_and_author = [el.strip() for el in text_header.split('::')]
     title, author = title_and_author
-    comments_in_page = soup.find_all('div', class_='texts')
-    genres = soup.find('span', class_='d_book').find_all('a')
-    image_url = soup.find('div', class_='bookimage').find('img')['src']
+    comments_in_page_selector = 'div.texts'
+    comments_in_page = soup.select(comments_in_page_selector)
+    genres_selector = 'span.d_book a'
+    genres = soup.select(genres_selector)
+    image_url_selector = 'div.bookimage img'
+    image_url = soup.select_one(image_url_selector)['src']
     books_info = {
         'author': author,
         'title': title,
@@ -36,7 +40,7 @@ def parse_book_page(responce):
     }
     if comments_in_page:
         comments = [
-            comment.find('span', class_='black').text
+            comment.select_one('span.black').text
             for comment in comments_in_page
             ]
         books_info['comments'] = comments
@@ -92,33 +96,42 @@ def download_txt(url, filename, folder='books/'):
         pass
 
 
-books_description = []
-for page_id in range(1, 11):
-    query = {'id': page_id}
-    params = urlencode(query)
-    download_url = f'http://tululu.org/txt.php?{params}'
-    title_url = 'http://tululu.org/l55/{page_id}'.format(page_id=page_id)
-    try:
-        response = requests.get(title_url)
-        response.raise_for_status()
-        check_for_redirect(response)
-        soup = BeautifulSoup(response.text, 'lxml')
-        book_links = soup.find_all('div', class_='bookimage')
-        for book in book_links:
-            book_page_response = (
-                requests.get(urljoin(title_url, book.find('a')['href']))
-            )
-            book_page_response.raise_for_status()
-            check_for_redirect(book_page_response)
-            books_info = parse_book_page(book_page_response.text)
-            download_txt(download_url,
-                         books_info['title'],
-                         folder='books/')
-            download_image(title_url,
-                           books_info['image_url'],
-                           folder='images/')
-            books_description.append(books_info)
-    except requests.HTTPError:
-        pass
-with open('books_description.json', 'w') as file:
-    json.dump(books_description, file, ensure_ascii=False)
+def main():
+    books_description = []
+    for page_id in range(1, 11):
+        query = {'id': page_id}
+        params = urlencode(query)
+        download_url = f'http://tululu.org/txt.php?{params}'
+        title_url = 'http://tululu.org/l55/{page_id}'.format(page_id=page_id)
+        try:
+            response = requests.get(title_url)
+            response.raise_for_status()
+            check_for_redirect(response)
+            soup = BeautifulSoup(response.text, 'lxml')
+            book_links_selector = 'div.bookimage'
+            book_links = soup.select(book_links_selector)
+            for book in book_links:
+                book_page_response = (
+                    requests.get(
+                        urljoin(title_url,
+                                book.select_one('a')['href'])
+                    )
+                )
+                book_page_response.raise_for_status()
+                check_for_redirect(book_page_response)
+                books_info = parse_book_page(book_page_response.text)
+                download_txt(download_url,
+                             books_info['title'],
+                             folder='books/')
+                download_image(title_url,
+                               books_info['image_url'],
+                               folder='images/')
+                books_description.append(books_info)
+        except requests.HTTPError:
+            pass
+    with open('books_description.json', 'w') as file:
+        json.dump(books_description, file, ensure_ascii=False)
+
+
+if __name__ in '__main__':
+    main()
