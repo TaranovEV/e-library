@@ -9,7 +9,7 @@ from urllib.parse import urljoin, urlencode
 
 
 def find_number_last_page(url):
-    """Функция поиска последней страницы.
+    """Функция поиска номера последней страницы.
     Args:
         url - url адрес страницы
     Return:
