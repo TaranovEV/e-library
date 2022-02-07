@@ -8,6 +8,20 @@ from pathvalidate import sanitize_filepath, sanitize_filename
 from urllib.parse import urljoin, urlencode
 
 
+def find_number_last_page(url):
+    """Функция поиска последней страницы.
+    Args:
+        url - url адрес страницы
+    Return:
+        номер последней страницы
+
+    """
+    response = requests.get(url)
+    soup = BeautifulSoup(response.text, 'lxml')
+    last_page_selector = 'a.npage'
+    return int(soup.select(last_page_selector)[-1].text)
+
+
 def parse_book_page(responce):
     """
     Args:
@@ -86,31 +100,30 @@ def download_txt(url, filename, folder='books/'):
     Returns:
 
     """
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-        check_for_redirect(response)
-        filename = sanitize_filename(''.join([filename, '.txt']))
-        fpath = sanitize_filepath(
-            os.path.join(folder, filename), platform='auto'
-        )
-        Path(folder).mkdir(parents=True, exist_ok=True)
-        with open(fpath, 'w') as file:
-            file.write(response.text)
-    except requests.HTTPError:
-        pass
+    response = requests.get(url)
+    response.raise_for_status()
+    check_for_redirect(response)
+    filename = sanitize_filename(f'{filename}.txt')
+    fpath = sanitize_filepath(
+        os.path.join(folder, filename), platform='auto'
+    )
+    Path(folder).mkdir(parents=True, exist_ok=True)
+    with open(fpath, 'w') as file:
+        file.write(response.text)
 
 
 def main():
+    url = 'http://tululu.org/l55/{page_number}'.format(page_number='')
+    last_page_number = find_number_last_page(url)
     parser = argparse.ArgumentParser()
     parser.add_argument('--start_page',
                         help='номер стартовой страницы парсера',
                         type=int,
-                        default=700)
+                        default=last_page_number - 1)
     parser.add_argument('--end_page',
                         help='номер "конечной" страницы парсера',
                         type=int,
-                        default=702)
+                        default=last_page_number)
     parser.add_argument('--dest_folder',
                         help='''путь к каталогу с результатами парсинга:
                         картинкам, книгам, JSON''',
@@ -118,11 +131,11 @@ def main():
                         default=os.getcwd())
     parser.add_argument('--skip_imgs',
                         help='не скачивать картинки',
-                        type=bool,
+                        action='store_true',
                         default=False)
     parser.add_argument('--skip_txt',
                         help='не скачивать книги',
-                        type=bool,
+                        action='store_true',
                         default=False)
     parser.add_argument('--json_path',
                         help='указать свой путь к *.json файлу с результатами',
@@ -132,25 +145,22 @@ def main():
     assert_message = 'Аргумент end_page должен быть больше чем start_page'
     assert args.end_page >= args.start_page, assert_message
     books_description = []
-    for page_number in range(args.start_page, args.end_page):
+    for page_number in range(args.start_page, args.end_page + 1):
         query = {'id': page_number}
         params = urlencode(query)
         download_url = f'http://tululu.org/txt.php?{params}'
-        title_url = (
-            'http://tululu.org/l55/{page_number}'
-            .format(page_number=page_number)
-        )
+        page_url = url.format(page_number=page_number)
         try:
-            response = requests.get(title_url)
+            response = requests.get(page_url)
             response.raise_for_status()
             check_for_redirect(response)
             soup = BeautifulSoup(response.text, 'lxml')
-            book_links_selector = 'div.bookimage'
-            book_links = soup.select(book_links_selector)
-            for book in book_links:
+            book_elements_selector = 'div.bookimage'
+            books_page_elements = soup.select(book_elements_selector)
+            for book in books_page_elements:
                 book_page_response = (
                     requests.get(
-                        urljoin(title_url,
+                        urljoin(page_url,
                                 book.select_one('a')['href'])
                     )
                 )
@@ -163,7 +173,7 @@ def main():
                                  folder=os.path.join(args.dest_folder,
                                                      'books/'))
                 if not args.skip_imgs:
-                    download_image(title_url,
+                    download_image(page_url,
                                    books_info['image_url'],
                                    folder=os.path.join(args.dest_folder,
                                                        'images/'))
