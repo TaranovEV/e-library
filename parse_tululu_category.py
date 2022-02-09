@@ -18,8 +18,8 @@ def find_number_last_page(url):
     """
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'lxml')
-    last_page_selector = 'a.npage'
-    return int(soup.select(last_page_selector)[-1].text)
+    last_page_selector = 'a.npage:last-child'
+    return int(soup.select_one(last_page_selector).text)
 
 
 def parse_book_page(responce):
@@ -113,7 +113,7 @@ def download_txt(url, filename, folder='books/'):
 
 
 def main():
-    url = 'http://tululu.org/l55/{page_number}'.format(page_number='')
+    url = 'http://tululu.org/l55/'
     last_page_number = find_number_last_page(url)
     parser = argparse.ArgumentParser()
     parser.add_argument('--start_page',
@@ -149,7 +149,7 @@ def main():
         query = {'id': page_number}
         params = urlencode(query)
         download_url = f'http://tululu.org/txt.php?{params}'
-        page_url = url.format(page_number=page_number)
+        page_url = f'http://tululu.org/l55/{page_number}'
         try:
             response = requests.get(page_url)
             response.raise_for_status()
