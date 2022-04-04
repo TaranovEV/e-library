@@ -1,6 +1,7 @@
 import argparse
 import json
 import os
+import re 
 import requests
 from bs4 import BeautifulSoup
 from pathlib import Path
@@ -48,7 +49,7 @@ def parse_book_page(responce):
     image_url = soup.select_one(image_url_selector)['src']
     books_info = {
         'author': author,
-        'title': title,
+        'title': sanitize_filename(title),
         'genres': [genre.text for genre in genres],
         'comments': [],
         'image_url': image_url,
@@ -102,18 +103,18 @@ def download_txt(url, filename, folder='books/'):
     """
     response = requests.get(url)
     response.raise_for_status()
-    check_for_redirect(response)
     filename = sanitize_filename(f'{filename}.txt')
     fpath = sanitize_filepath(
         os.path.join(folder, filename), platform='auto'
     )
     Path(folder).mkdir(parents=True, exist_ok=True)
-    with open(fpath, 'w') as file:
-        file.write(response.text)
+    with open(fpath, 'wb') as file:
+        file.write(response.content)
 
 
 def main():
-    url = 'http://tululu.org/l55/'
+    base_url = 'https://tululu.org'
+    url = urljoin(base_url, 'l55/')
     last_page_number = find_number_last_page(url)
     parser = argparse.ArgumentParser()
     parser.add_argument('--start_page',
@@ -146,15 +147,12 @@ def main():
     assert args.end_page >= args.start_page, assert_message
     books_description = []
     for page_number in range(args.start_page, args.end_page + 1):
-        query = {'id': page_number}
-        params = urlencode(query)
-        download_url = f'http://tululu.org/txt.php?{params}'
-        page_url = f'http://tululu.org/l55/{page_number}'
+        page_url = urljoin(url, str(page_number))
         try:
-            response = requests.get(page_url)
-            response.raise_for_status()
-            check_for_redirect(response)
-            soup = BeautifulSoup(response.text, 'lxml')
+            response_page = requests.get(page_url)
+            response_page.raise_for_status()
+            check_for_redirect(response_page)
+            soup = BeautifulSoup(response_page.text, 'lxml')
             book_elements_selector = 'div.bookimage'
             books_page_elements = soup.select(book_elements_selector)
             for book in books_page_elements:
@@ -164,21 +162,28 @@ def main():
                                 book.select_one('a')['href'])
                     )
                 )
+
                 book_page_response.raise_for_status()
                 check_for_redirect(book_page_response)
                 books_info = parse_book_page(book_page_response.text)
-                if not args.skip_txt:
-                    download_txt(download_url,
+                query = {'id': re.findall('\d+', book.select_one('a')['href'])[0]}
+                params = urlencode(query)
+                download_url = f'http://tululu.org/txt.php?{params}'
+                txt_link = f'/txt.php\?{params}'
+                if re.findall(txt_link, book_page_response.text):
+                    if not args.skip_txt:
+                        download_txt(download_url,
                                  books_info['title'],
                                  folder=os.path.join(args.dest_folder,
                                                      'books/'))
-                if not args.skip_imgs:
-                    download_image(page_url,
+                    if not args.skip_imgs:
+                        download_image(page_url,
                                    books_info['image_url'],
                                    folder=os.path.join(args.dest_folder,
                                                        'images/'))
-                books_description.append(books_info)
+                    books_description.append(books_info)
         except requests.HTTPError:
+            print('err')
             pass
     json_path = os.path.join(args.json_path, 'books_description.json')
     json_path = sanitize_filepath(json_path, platform='auto')
